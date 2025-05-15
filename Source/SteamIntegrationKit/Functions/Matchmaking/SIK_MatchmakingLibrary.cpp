@@ -67,7 +67,7 @@ void USIK_MatchmakingLibrary::AddRequestLobbyListNearValueFilter(FString KeyToMa
 	{
 		return;
 	}
-	SteamMatchmaking()->AddRequestLobbyListNearValueFilter(TCHAR_TO_ANSI(*KeyToMatch), ValueToBeCloseTo);
+	SteamMatchmaking()->AddRequestLobbyListNearValueFilter(TCHAR_TO_UTF8(*KeyToMatch), ValueToBeCloseTo);
 #endif
 }
 
@@ -79,7 +79,7 @@ void USIK_MatchmakingLibrary::AddRequestLobbyListNumericalFilter(FString KeyToMa
 	{
 		return;
 	}
-	SteamMatchmaking()->AddRequestLobbyListNumericalFilter(TCHAR_TO_ANSI(*KeyToMatch), ValueToMatch, static_cast<ELobbyComparison>(ComparisonType.GetValue()));
+	SteamMatchmaking()->AddRequestLobbyListNumericalFilter(TCHAR_TO_UTF8(*KeyToMatch), ValueToMatch, static_cast<ELobbyComparison>(ComparisonType.GetValue()));
 #endif
 }
 
@@ -102,7 +102,7 @@ void USIK_MatchmakingLibrary::AddRequestLobbyListStringFilter(FString KeyToMatch
 	{
 		return;
 	}
-	SteamMatchmaking()->AddRequestLobbyListStringFilter(TCHAR_TO_ANSI(*KeyToMatch), TCHAR_TO_ANSI(*ValueToMatch), static_cast<ELobbyComparison>(ComparisonType.GetValue()));
+	SteamMatchmaking()->AddRequestLobbyListStringFilter(TCHAR_TO_UTF8(*KeyToMatch), TCHAR_TO_UTF8(*ValueToMatch), static_cast<ELobbyComparison>(ComparisonType.GetValue()));
 #endif
 }
 
@@ -113,7 +113,7 @@ bool USIK_MatchmakingLibrary::DeleteLobbyData(FSIK_SteamId SteamID, FString Key)
 	{
 		return false;
 	}
-	return SteamMatchmaking()->DeleteLobbyData(SteamID.GetSteamID(), TCHAR_TO_ANSI(*Key));
+	return SteamMatchmaking()->DeleteLobbyData(SteamID.GetSteamID(), TCHAR_TO_UTF8(*Key));
 #else
 	return false;
 #endif
@@ -189,16 +189,15 @@ void USIK_MatchmakingLibrary::GetLobbyChatEntry(FSIK_SteamId SteamID, int32 Chat
 	}
 	CSteamID Var_SteamIDUser;
 	EChatEntryType Var_ChatEntryType;
-	TArray<uint8> Var_ChatEntry;
-	Var_ChatEntry.SetNum(4096);
-	auto ReturnVal = SteamMatchmaking()->GetLobbyChatEntry(SteamID.GetSteamID(), ChatID, &Var_SteamIDUser, Var_ChatEntry.GetData(), Var_ChatEntry.Num(), &Var_ChatEntryType);
-	Var_ChatEntry.SetNum(ReturnVal);
+	std::string Var_ChatEntry;
+	Var_ChatEntry.resize(4096);
+	auto ReturnVal = SteamMatchmaking()->GetLobbyChatEntry(SteamID.GetSteamID(), ChatID, &Var_SteamIDUser, Var_ChatEntry.data(), Var_ChatEntry.size(), &Var_ChatEntryType);
+	Var_ChatEntry.resize(ReturnVal);
+	Var_ChatEntry.insert(Var_ChatEntry.end(),'\0');
 	SteamIDUser = Var_SteamIDUser;
-	if(Var_ChatEntry.Num() > 0)
+	if(Var_ChatEntry.size())
 	{
-		FMemoryReader Reader(Var_ChatEntry);
-		Reader << ChatEntry;
-		Reader.Close();
+		ChatEntry = FString(UTF8_TO_TCHAR(Var_ChatEntry.c_str()));
 	}
 	ChatEntryType = static_cast<ESIK_LobbyChatEntryType>(Var_ChatEntryType);
 #endif
@@ -211,7 +210,7 @@ FString USIK_MatchmakingLibrary::GetLobbyData(FSIK_SteamId LobbyID, FString Key)
 	{
 		return "";
 	}
-	return UTF8_TO_TCHAR(SteamMatchmaking()->GetLobbyData(LobbyID.GetSteamID(), TCHAR_TO_ANSI(*Key)));
+	return UTF8_TO_TCHAR(SteamMatchmaking()->GetLobbyData(LobbyID.GetSteamID(), TCHAR_TO_UTF8(*Key)));
 #else
 	return "";
 #endif
@@ -289,7 +288,7 @@ FString USIK_MatchmakingLibrary::GetLobbyMemberData(FSIK_SteamId LobbyID, FSIK_S
 	{
 		return "";
 	}
-	return UTF8_TO_TCHAR(SteamMatchmaking()->GetLobbyMemberData(LobbyID.GetSteamID(), UserID.GetSteamID(), TCHAR_TO_ANSI(*Key)));
+	return UTF8_TO_TCHAR(SteamMatchmaking()->GetLobbyMemberData(LobbyID.GetSteamID(), UserID.GetSteamID(), TCHAR_TO_UTF8(*Key)));
 #else
 	return "";
 #endif
@@ -399,7 +398,12 @@ bool USIK_MatchmakingLibrary::SendLobbyChatMessage(FSIK_SteamId LobbyID, FString
 	{
 		return false;
 	}
-	return SteamMatchmaking()->SendLobbyChatMsg(LobbyID.GetSteamID(), TCHAR_TO_ANSI(*Message), Message.Len());
+	if (!Message.IsEmpty())
+	{
+		std::string str(TCHAR_TO_UTF8(*Message));
+		return SteamMatchmaking()->SendLobbyChatMsg(LobbyID.GetSteamID(), str.data(), str.size());
+	}
+	return false;
 #else
 	return false;
 #endif
@@ -423,7 +427,7 @@ bool USIK_MatchmakingLibrary::SetLobbyData(FSIK_SteamId LobbyID, FString Key, FS
 	{
 		return false;
 	}
-	return SteamMatchmaking()->SetLobbyData(LobbyID.GetSteamID(), TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Value));
+	return SteamMatchmaking()->SetLobbyData(LobbyID.GetSteamID(), TCHAR_TO_UTF8(*Key), TCHAR_TO_UTF8(*Value));
 #else
 	return false;
 #endif
@@ -462,7 +466,7 @@ void USIK_MatchmakingLibrary::SetLobbyMemberData(FSIK_SteamId LobbyID, FString K
 	{
 		return;
 	}
-	SteamMatchmaking()->SetLobbyMemberData(LobbyID.GetSteamID(), TCHAR_TO_ANSI(*Key), TCHAR_TO_ANSI(*Value));
+	SteamMatchmaking()->SetLobbyMemberData(LobbyID.GetSteamID(), TCHAR_TO_UTF8(*Key), TCHAR_TO_UTF8(*Value));
 #endif
 }
 
